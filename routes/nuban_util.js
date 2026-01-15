@@ -3,36 +3,79 @@ var { NotFoundError } = require("restify-errors");
 const banks = [
   // Commercial Banks (3-digit codes)
   { name: "ACCESS BANK", code: "044" },
-  { name: "CITIBANK", code: "023" },
-  { name: "DIAMOND BANK", code: "063" },
+  { name: "ACCESS BANK (DIAMOND)", code: "063" },
+  { name: "CITIBANK NIGERIA", code: "023" },
   { name: "ECOBANK NIGERIA", code: "050" },
   { name: "FIDELITY BANK", code: "070" },
   { name: "FIRST BANK OF NIGERIA", code: "011" },
   { name: "FIRST CITY MONUMENT BANK", code: "214" },
+  { name: "GLOBUS BANK", code: "00103" },
   { name: "GUARANTY TRUST BANK", code: "058" },
   { name: "HERITAGE BANK", code: "030" },
   { name: "JAIZ BANK", code: "301" },
   { name: "KEYSTONE BANK", code: "082" },
-  { name: "PROVIDUS BANK", code: "101" },
-  { name: "SKYE BANK", code: "076" },
+  { name: "LOTUS BANK", code: "303" },
+  { name: "PARALLEX BANK", code: "526" },
+  { name: "POLARIS BANK", code: "076" },
+  { name: "PROVIDUS BANK", code: "020" },
   { name: "STANBIC IBTC BANK", code: "221" },
   { name: "STANDARD CHARTERED BANK", code: "068" },
   { name: "STERLING BANK", code: "232" },
-  { name: "SUNTRUST", code: "100" },
+  { name: "SUNTRUST BANK", code: "100" },
+  { name: "TAJ BANK", code: "302" },
+  { name: "TITAN TRUST BANK", code: "102" },
   { name: "UNION BANK OF NIGERIA", code: "032" },
   { name: "UNITED BANK FOR AFRICA", code: "033" },
   { name: "UNITY BANK", code: "215" },
   { name: "WEMA BANK", code: "035" },
   { name: "ZENITH BANK", code: "057" },
-  // Microfinance Banks and Fintech (5-digit codes)
-  { name: "MONIEPOINT MFB", code: "50515" },
+
+  // Microfinance Banks (5-digit codes) - Popular/Digital Banks
+  { name: "CARBON", code: "565" },
+  { name: "EYOWO", code: "50126" },
+  { name: "FAIRMONEY MICROFINANCE BANK", code: "51318" },
   { name: "KUDA BANK", code: "50211" },
-  { name: "VFD MICROFINANCE BANK", code: "566" },
+  { name: "MONIEPOINT MICROFINANCE BANK", code: "50515" },
   { name: "SPARKLE MICROFINANCE BANK", code: "51310" },
-  { name: "RUBIES MFB", code: "125" },
-  { name: "OPAY DIGITAL SERVICES", code: "305" },
+  { name: "VFD MICROFINANCE BANK", code: "090110" },
+  { name: "RUBIES MFB", code: "50596" },
+
+  // Other Notable MFBs
+  { name: "ACCION MICROFINANCE BANK", code: "602" },
+  { name: "BAOBAB MICROFINANCE BANK", code: "MFB50992" },
+  { name: "CONSUMER MICROFINANCE BANK", code: "50910" },
+  { name: "GROOMING MICROFINANCE BANK", code: "51276" },
+  { name: "HACKMAN MICROFINANCE BANK", code: "51251" },
+  { name: "IBILE MICROFINANCE BANK", code: "51244" },
+  { name: "MINT MFB", code: "50304" },
+  { name: "TANGERINE MFB", code: "51214" },
+
   // Payment Service Banks (6-digit codes)
-  { name: "PALMPAY", code: "999991" }
+  { name: "9MOBILE 9PAYMENT SERVICE BANK", code: "120001" },
+  { name: "AIRTEL SMARTCASH PSB", code: "120004" },
+  { name: "HOPE PSB", code: "120002" },
+  { name: "MTN MOMO PSB", code: "120003" },
+  { name: "PALMPAY", code: "999991" },
+
+  // Digital Payment Platforms
+  { name: "PAGA", code: "100002" },
+  { name: "GOMONEY", code: "100022" },
+  { name: "KONGAPAY", code: "100025" },
+  { name: "PARKWAY", code: "100028" },
+  { name: "PREMIUM TRUST BANK", code: "100032" },
+
+  // Mortgage Banks
+  { name: "ABBEY MORTGAGE BANK", code: "404" },
+  { name: "AG MORTGAGE BANK", code: "90077" },
+  { name: "IMPERIAL HOMES MORTGAGE BANK", code: "415" },
+  { name: "LIVING TRUST MORTGAGE BANK", code: "031" },
+
+  // Merchant Banks
+  { name: "CORONATION MERCHANT BANK", code: "559" },
+  { name: "FSDH MERCHANT BANK", code: "501" },
+  { name: "GREENWICH MERCHANT BANK", code: "562" },
+  { name: "NOVA MERCHANT BANK", code: "561" },
+  { name: "RAND MERCHANT BANK", code: "50231" }
 ];
 
 // Updated algorithm based on 03balogun's implementation
