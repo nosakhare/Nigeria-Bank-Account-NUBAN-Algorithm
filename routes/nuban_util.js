@@ -1,4 +1,11 @@
-var { NotFoundError } = require("restify-errors");
+// Error class for Express
+class NotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'NotFoundError';
+    this.statusCode = 404;
+  }
+}
 
 // Nigerian mobile phone number prefixes (without leading 0)
 // These are used to detect if an account number is actually a phone number
@@ -241,6 +248,98 @@ const nubanLength = 10;
 const serialNumLength = 9;
 let error;
 
+/**
+ * Ranks a bank match based on actual transaction volume data
+ * Returns a confidence score (higher is more likely)
+ * Based on top 50 banks by customer transfer volume
+ */
+const rankBankMatch = (bank, accountNumber, isPhoneNumber) => {
+  let score = 0;
+
+  // If account looks like a phone number, heavily favor PSBs
+  if (isPhoneNumber && !bank.usesNuban) {
+    score += 1000; // PSBs get massive boost for phone numbers
+  }
+
+  // Top 50 banks by actual transaction volume (ranked by popularity)
+  const bankPopularity = {
+    // Top tier - Digital/Fintech leaders (500+ points)
+    "OPAY DIGITAL SERVICES LIMITED (OPAY)": 500,
+    "MONIEPOINT MICROFINANCE BANK": 490,
+    "PALMPAY": 480,
+    "KUDA BANK": 470,
+
+    // Major commercial banks (400-460 points)
+    "ACCESS BANK": 460,
+    "UNITED BANK FOR AFRICA": 450,
+    "FIRST BANK OF NIGERIA": 440,
+    "GUARANTY TRUST BANK": 430,
+    "ZENITH BANK": 420,
+    "STERLING BANK": 410,
+    "WEMA BANK": 400,
+
+    // Mid-tier commercial & digital (300-390 points)
+    "FIRST CITY MONUMENT BANK": 390,
+    "FIDELITY BANK": 380,
+    "UNION BANK OF NIGERIA": 370,
+    "PROVIDUS BANK": 360,
+    "ECOBANK NIGERIA": 350,
+    "PAGA": 340,
+    "POLARIS BANK": 330,
+    "FAIRMONEY MICROFINANCE BANK": 320,
+    "9MOBILE 9PAYMENT SERVICE BANK": 310,
+    "STANBIC IBTC BANK": 300,
+
+    // Popular PSBs & MFBs (200-290 points)
+    "AIRTEL SMARTCASH PSB": 290,
+    "VFD MICROFINANCE BANK": 280,
+    "KEYSTONE BANK": 270,
+    "MTN MOMO PSB": 260,
+    "GLOBUS BANK": 250,
+    "ACCESS BANK (DIAMOND)": 240,
+    "SAFE HAVEN MFB": 230,
+    "JAIZ BANK": 220,
+    "UNITY BANK": 210,
+    "PREMIUM TRUST BANK": 200,
+
+    // Growing digital banks (100-190 points)
+    "POCKET APP": 190,
+    "TAJ BANK": 180,
+    "CARBON": 170,
+    "CASHCONNECT MFB": 160,
+    "GOMONEY": 150,
+    "LOTUS BANK": 140,
+    "PARALLEX BANK": 130,
+    "OPTIMUS BANK LIMITED": 120,
+    "BRANCH INTERNATIONAL FINANCIAL SERVICES LIMITED": 110,
+    "STANDARD CHARTERED BANK": 100,
+
+    // Other notable banks (50-90 points)
+    "KREDI MONEY MFB LTD": 90,
+    "SPARKLE MICROFINANCE BANK": 80,
+    "VFD MICROFINANCE BANK LIMITED": 70,
+    "SAFE HAVEN MICROFINANCE BANK LIMITED": 60,
+    "PAYSTACK-TITAN": 50
+  };
+
+  // Apply popularity score
+  if (bankPopularity[bank.name]) {
+    score += bankPopularity[bank.name];
+  } else {
+    // Banks not in top 50 get base score by type
+    const isCommercialBank = bank.code.length === 3;
+    const isMicrofinance = bank.code.length === 5;
+    const isPaymentPlatform = bank.code.length === 6;
+
+    if (isCommercialBank) score += 40;
+    else if (isMicrofinance) score += 20;
+    else if (isPaymentPlatform) score += 10;
+    else score += 5;
+  }
+
+  return score;
+};
+
 module.exports = {
   getAccountBanks: (req, res, next) => {
     let accountNumber = req.params.account;
@@ -252,9 +351,25 @@ module.exports = {
     let nubanMatches = [];
     banks.forEach((item) => {
       if (item.usesNuban && isBankAccountValid(accountNumber, item.code)) {
-        nubanMatches.push(item);
+        const confidence = rankBankMatch(item, accountNumber, looksLikePhoneNumber);
+        nubanMatches.push({
+          ...item,
+          confidence
+        });
       }
     });
+
+    // Sort by confidence score (highest first)
+    nubanMatches.sort((a, b) => b.confidence - a.confidence);
+
+    // For phone numbers, also rank PSBs
+    let rankedPhoneMatches = [];
+    if (looksLikePhoneNumber) {
+      rankedPhoneMatches = phoneNumberBanks.map(bank => ({
+        ...bank,
+        confidence: rankBankMatch(bank, accountNumber, true)
+      })).sort((a, b) => b.confidence - a.confidence);
+    }
 
     // Build response with hybrid results
     const response = {
@@ -262,7 +377,8 @@ module.exports = {
       isPhoneNumber: looksLikePhoneNumber,
       phoneNumber: looksLikePhoneNumber ? reconstructPhoneNumber(accountNumber) : null,
       nubanMatches,
-      phoneMatches: looksLikePhoneNumber ? phoneNumberBanks : []
+      phoneMatches: rankedPhoneMatches,
+      totalMatches: nubanMatches.length + rankedPhoneMatches.length
     };
 
     res.send(response);
