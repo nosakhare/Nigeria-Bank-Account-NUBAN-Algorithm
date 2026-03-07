@@ -8,11 +8,11 @@ console.log("=".repeat(80));
 
 // Test cases
 const testCases = [
-  { account: "4000675874", expectedBanks: ["MONIEPOINT MFB", "FIDELITY BANK", "GUARANTY TRUST BANK"] },
-  { account: "5822207333", expectedBanks: ["MONIEPOINT MFB", "FIDELITY BANK", "GUARANTY TRUST BANK"] },
-  { account: "2182813377", expectedBanks: ["PALMPAY", "ACCESS BANK", "FIRST BANK OF NIGERIA", "UNITED BANK FOR AFRICA"] },
+  { account: "4000675874", expectedBanks: ["MONIEPOINT MICROFINANCE BANK", "FIDELITY BANK", "GUARANTY TRUST BANK"] },
+  { account: "5822207333", expectedBanks: ["MONIEPOINT MICROFINANCE BANK", "FIDELITY BANK", "GUARANTY TRUST BANK"] },
+  { account: "2182813377", expectedBanks: ["ACCESS BANK", "FIRST BANK OF NIGERIA", "UNITED BANK FOR AFRICA"] },
   { account: "1100000121", expectedBanks: ["PROVIDUS BANK", "STANDARD CHARTERED BANK", "WEMA BANK", "ZENITH BANK"] },
-  { account: "0088116788", expectedBanks: ["CITIBANK", "STANBIC IBTC BANK", "STERLING BANK", "SUNTRUST"] }
+  { account: "0088116788", expectedBanks: ["CITIBANK NIGERIA", "STANBIC IBTC BANK", "STERLING BANK", "SUNTRUST BANK"] }
 ];
 
 testCases.forEach((testCase, index) => {
@@ -24,8 +24,13 @@ testCases.forEach((testCase, index) => {
   const matchedBanks = [];
 
   const res = {
-    send: (banks) => {
-      banks.forEach(bank => matchedBanks.push(bank));
+    send: (response) => {
+      if (response.nubanMatches) {
+        response.nubanMatches.forEach(bank => matchedBanks.push(bank));
+      }
+      if (response.phoneMatches) {
+        response.phoneMatches.forEach(bank => matchedBanks.push(bank));
+      }
     }
   };
 
