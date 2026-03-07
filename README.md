@@ -7,7 +7,7 @@
 
 ## Overview
 
-This REST API implements the Central Bank of Nigeria's (CBN) NUBAN algorithm for validating and generating 10-digit bank account numbers. It supports **200+ Nigerian financial institutions** including commercial banks, microfinance banks, payment service banks, merchant banks, and digital payment platforms.
+This REST API implements the Central Bank of Nigeria's (CBN) NUBAN algorithm for validating and generating 10-digit bank account numbers. It supports **176 Nigerian financial institutions** including commercial banks, microfinance banks, payment service banks, merchant banks, and digital payment platforms.
 
 ### What is NUBAN?
 
@@ -15,7 +15,7 @@ NUBAN (Nigerian Uniform Bank Account Number) is a standard 10-digit account numb
 
 ## Key Features
 
-- ✅ **Comprehensive Bank Coverage**: 200+ Nigerian financial institutions including commercial, microfinance, payment service, mortgage, and merchant banks
+- ✅ **Comprehensive Bank Coverage**: 176 Nigerian financial institutions including commercial, microfinance, payment service, mortgage, and merchant banks
 - ✅ **Modern Algorithm**: Based on [03balogun's implementation](https://github.com/03balogun/nuban-bank-prediction-algorithm) with [CBN 2020 Revised Standards](https://www.cbn.gov.ng/out/2020/psmd/revised%20standards%20on%20nigeria%20uniform%20bank%20account%20number%20(nuban)%20for%20banks%20and%20other%20financial%20institutions%20.pdf)
 - ✅ **Multi-Code Support**: Handles 3-digit (commercial banks), 5-digit (microfinance banks), and 6-digit (payment service banks) CBN bank codes
 - ✅ **Phone Number Detection**: Automatically detects when account numbers are Nigerian phone numbers (used by Payment Service Banks)
@@ -24,7 +24,7 @@ NUBAN (Nigerian Uniform Bank Account Number) is a standard 10-digit account numb
 - ✅ **RESTful API**: Easy-to-use endpoints for validation and generation
 - ✅ **Well Tested**: Comprehensive test suite included
 
-The implementation includes **200+ Nigerian financial institutions** across multiple categories:
+The implementation includes **176 Nigerian financial institutions** across multiple categories:
 
 ### Commercial Banks (30+)
 Access Bank, Access Bank (Diamond), Citibank Nigeria, Ecobank Nigeria, Fidelity Bank, First Bank of Nigeria, First City Monument Bank, Globus Bank, Guaranty Trust Bank, Heritage Bank, Jaiz Bank, Keystone Bank, Lotus Bank, Parallex Bank, Polaris Bank, Providus Bank, Stanbic IBTC Bank, Standard Chartered Bank, Sterling Bank, Suntrust Bank, Taj Bank, Titan Trust Bank, Union Bank of Nigeria, United Bank for Africa, Unity Bank, Wema Bank, Zenith Bank, Optimus Bank Limited, Signature Bank Ltd, PremiumTrust Bank, The Alternative Bank
@@ -69,7 +69,7 @@ cd Nigeria-Bank-Account-NUBAN-Algorithm
 npm install
 
 # Start the server
-node index.js
+node server.js
 ```
 
 The API will be available at `http://localhost:3000`
@@ -334,8 +334,6 @@ Check Digit: 10 - 6 = 4 ✓ (matches last digit!)
 
 ## Testing
 
-The repository includes several test scripts to verify implementation:
-
 ### Test Any Account Number
 ```bash
 node test_any_account.js <account-number>
@@ -346,51 +344,27 @@ node test_any_account.js 4000675874
 
 Shows all possible banks where the account number is valid.
 
-### Test Updated Implementation
+### Run Comprehensive Test Suite
 ```bash
 node test_updated_implementation.js
 ```
 
-Runs comprehensive tests on multiple account numbers.
-
-### Test Specific Bank
-```bash
-node test_moniepoint.js
-```
-
-Tests specific bank implementations.
-
-### Test NIP Codes vs CBN Codes
-```bash
-node test_nip_codes.js
-```
-
-Demonstrates the difference between NIP codes (for transfers) and CBN codes (for NUBAN validation).
+Runs comprehensive tests on multiple account numbers across different bank types.
 
 ## Project Structure
 
 ```
 Nigeria-Bank-Account-NUBAN-Algorithm/
-├── index.js                          # Application entry point (Restify server)
+├── server.js                         # Express server entry point
 ├── package.json                      # Dependencies and metadata
-├── config/
-│   └── config.js                     # Server configuration
 ├── routes/
-│   ├── route_index.js               # API route definitions
-│   └── nuban_util.js                # Core NUBAN algorithm + bank list
-├── test_account.js                   # Basic account validation test
-├── test_any_account.js              # Test any account number
+│   └── nuban_util.js                # Core NUBAN algorithm + 176 bank definitions
+├── test_any_account.js              # CLI tool: test any account number
 ├── test_updated_implementation.js   # Comprehensive test suite
-├── test_moniepoint.js               # Moniepoint-specific tests
-├── test_nip_codes.js                # NIP vs CBN code comparison
-├── verify_bank_codes_against_standard.js  # Verify against CBN standards
-├── COMPARISON.md                     # Algorithm comparison documentation
 └── README.md                         # This file
 ```
 
 ## Comparison with Original Implementation
-
-See [COMPARISON.md](COMPARISON.md) for a detailed comparison between this implementation and the 03balogun reference implementation.
 
 **Key Differences from Original Version**:
 
@@ -503,7 +477,7 @@ export NODE_ENV=production
 export BASE_URL=https://api.example.com
 
 # Start server
-node index.js
+node server.js
 ```
 
 ## Contributing
@@ -552,7 +526,7 @@ This is expected behavior. The NUBAN algorithm can produce the same check digit 
 - **CBN Codes**: Used for NUBAN validation (this API)
 - **NIP Codes**: Used for interbank transfers via NIBSS
 
-They are different numbering systems. See [test_nip_codes.js](test_nip_codes.js) for examples.
+They are different numbering systems.
 
 ### Can I use this for production applications?
 
@@ -574,6 +548,18 @@ Add the bank to the `banks` array in [routes/nuban_util.js](routes/nuban_util.js
 }
 ```
 
+## Changelog
+
+### v2.0 (January 2026) — Major Overhaul
+
+- **Algorithm upgrade**: Replaced the original single 12-digit seed pattern (`373373373373`) with separate weighted arrays for bank codes and serial numbers, based on [03balogun's implementation](https://github.com/03balogun/nuban-bank-prediction-algorithm) and the CBN 2020 Revised Standards
+- **Multi-code support**: Added support for 5-digit (microfinance) and 6-digit (payment service bank) CBN codes, in addition to the original 3-digit commercial bank codes
+- **Bank list expansion**: Grew from 22 commercial banks to 176 financial institutions across all categories (commercial, microfinance, PSB, mortgage, merchant, finance companies, digital platforms)
+- **Phone number detection**: Added automatic detection of Nigerian phone numbers used as account numbers by Payment Service Banks (PalmPay, OPay, MTN MoMo, etc.)
+- **Bank ranking**: Added confidence scoring based on transaction volume/popularity
+- **Express migration**: Migrated from Restify to Express for the REST API server
+- **Codebase cleanup**: Removed redundant development scripts, consolidated duplicate bank entries, fixed non-standard bank codes
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details
@@ -589,7 +575,7 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 - **Issues**: [GitHub Issues](https://github.com/nosakhare/Nigeria-Bank-Account-NUBAN-Algorithm/issues)
 - **Discussions**: Open a GitHub Discussion for questions
-- **Documentation**: See [COMPARISON.md](COMPARISON.md) for technical details
+- **Documentation**: See this README for technical details
 
 ---
 
