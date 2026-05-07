@@ -1,107 +1,180 @@
-// Test the updated implementation directly
-const nubanUtil = require('./routes/nuban_util.js');
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const nubanUtil = require("./routes/nuban_util.js");
 
-console.log("=".repeat(80));
-console.log("Testing Updated NUBAN Implementation");
-console.log("Based on 03balogun's algorithm with CBN Revised Standards (2020)");
-console.log("=".repeat(80));
+const {
+  getAccountBanks,
+  createAccountWithSerial,
+  generateCheckDigit,
+  isBankAccountValid,
+  isPhoneNumber,
+  padBankCode,
+  banks
+} = nubanUtil;
 
-// Test cases
-const testCases = [
-  { account: "4000675874", expectedBanks: ["MONIEPOINT MICROFINANCE BANK", "FIDELITY BANK", "GUARANTY TRUST BANK"] },
-  { account: "5822207333", expectedBanks: ["MONIEPOINT MICROFINANCE BANK", "FIDELITY BANK", "GUARANTY TRUST BANK"] },
-  { account: "2182813377", expectedBanks: ["ACCESS BANK", "FIRST BANK OF NIGERIA", "UNITED BANK FOR AFRICA"] },
-  { account: "1100000121", expectedBanks: ["PROVIDUS BANK", "STANDARD CHARTERED BANK", "WEMA BANK", "ZENITH BANK"] },
-  { account: "0088116788", expectedBanks: ["CITIBANK NIGERIA", "STANBIC IBTC BANK", "STERLING BANK", "SUNTRUST BANK"] }
-];
+const callHandler = (handler, req) => {
+  let sent;
+  let nextErr;
+  const res = { send: (payload) => { sent = payload; } };
+  const next = (err) => { nextErr = err; };
+  handler(req, res, next);
+  return { sent, nextErr };
+};
 
-testCases.forEach((testCase, index) => {
-  console.log(`\nTest ${index + 1}: Account ${testCase.account}`);
-  console.log("-".repeat(80));
+test("getAccountBanks returns expected banks for known NUBANs", () => {
+  const cases = [
+    { account: "4000675874", expected: ["MONIEPOINT MICROFINANCE BANK", "FIDELITY BANK", "GUARANTY TRUST BANK"] },
+    { account: "5822207333", expected: ["MONIEPOINT MICROFINANCE BANK", "FIDELITY BANK", "GUARANTY TRUST BANK"] },
+    { account: "2182813377", expected: ["ACCESS BANK", "FIRST BANK OF NIGERIA", "UNITED BANK FOR AFRICA"] },
+    { account: "1100000121", expected: ["PROVIDUS BANK", "STANDARD CHARTERED BANK", "WEMA BANK", "ZENITH BANK"] },
+    { account: "0088116788", expected: ["CITIBANK NIGERIA", "STANBIC IBTC BANK", "STERLING BANK", "SUNTRUST BANK"] }
+  ];
 
-  // Create mock request/response objects
-  const req = { params: { account: testCase.account } };
-  const matchedBanks = [];
-
-  const res = {
-    send: (response) => {
-      if (response.nubanMatches) {
-        response.nubanMatches.forEach(bank => matchedBanks.push(bank));
-      }
-      if (response.phoneMatches) {
-        response.phoneMatches.forEach(bank => matchedBanks.push(bank));
-      }
+  for (const { account, expected } of cases) {
+    const { sent } = callHandler(getAccountBanks, { params: { account } });
+    const matched = sent.nubanMatches.map(b => b.name);
+    for (const name of expected) {
+      assert.ok(matched.includes(name), `${account}: expected ${name} in matches, got ${matched.join(", ")}`);
     }
-  };
+  }
+});
 
-  // Call the function
-  nubanUtil.getAccountBanks(req, res, () => {});
-
-  console.log(`Found ${matchedBanks.length} matching bank(s):`);
-  matchedBanks.forEach(bank => {
-    const isExpected = testCase.expectedBanks.includes(bank.name);
-    const marker = isExpected ? "✓" : "🆕";
-    console.log(`  ${marker} ${bank.name.padEnd(35)} (Code: ${bank.code})`);
-  });
-
-  // Check if we found the expected banks
-  const foundExpected = testCase.expectedBanks.filter(expected =>
-    matchedBanks.some(bank => bank.name === expected)
-  );
-
-  if (foundExpected.length === testCase.expectedBanks.length) {
-    console.log(`✅ All expected banks found!`);
-  } else {
-    const missing = testCase.expectedBanks.filter(expected =>
-      !matchedBanks.some(bank => bank.name === expected)
+test("getAccountBanks ranks results by descending confidence", () => {
+  const { sent } = callHandler(getAccountBanks, { params: { account: "2182813377" } });
+  for (let i = 1; i < sent.nubanMatches.length; i++) {
+    assert.ok(
+      sent.nubanMatches[i - 1].confidence >= sent.nubanMatches[i].confidence,
+      "nubanMatches must be sorted by confidence desc"
     );
-    console.log(`⚠️  Missing expected banks: ${missing.join(", ")}`);
   }
 });
 
-console.log("\n" + "=".repeat(80));
-console.log("Testing Account Generation Endpoint");
-console.log("=".repeat(80));
-
-// Test account generation with different bank codes
-const generationTests = [
-  { bankCode: "058", serialNumber: "1656322", bankName: "GUARANTY TRUST BANK" },
-  { bankCode: "50515", serialNumber: "1656322", bankName: "MONIEPOINT MFB" },
-  { bankCode: "999991", serialNumber: "1656322", bankName: "PALMPAY" }
-];
-
-generationTests.forEach((test, index) => {
-  console.log(`\nGeneration Test ${index + 1}: ${test.bankName} (${test.bankCode})`);
-  console.log("-".repeat(80));
-
-  const req = {
-    params: { bank: test.bankCode },
-    body: { serialNumber: test.serialNumber }
-  };
-
-  let generatedAccount = null;
-  const res = {
-    send: (account) => {
-      generatedAccount = account;
-    }
-  };
-
-  const next = (error) => {
-    if (error) {
-      console.log(`❌ Error: ${error.message}`);
-    }
-  };
-
-  nubanUtil.createAccountWithSerial(req, res, next);
-
-  if (generatedAccount) {
-    console.log(`Serial Number: ${generatedAccount.serialNumber}`);
-    console.log(`Generated NUBAN: ${generatedAccount.nuban}`);
-    console.log(`Bank: ${generatedAccount.bank.name}`);
-    console.log(`✅ Successfully generated account for ${test.bankName}`);
-  }
+test("getAccountBanks flags phone-number-shaped account numbers", () => {
+  const { sent } = callHandler(getAccountBanks, { params: { account: "8031234567" } });
+  assert.equal(sent.isPhoneNumber, true);
+  assert.equal(sent.phoneNumber, "08031234567");
+  assert.ok(sent.phoneMatches.length > 0);
 });
 
-console.log("\n" + "=".repeat(80));
-console.log("All tests completed!");
-console.log("=".repeat(80));
+test("createAccountWithSerial generates a valid round-trip NUBAN", () => {
+  const { sent, nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "058" },
+    body: { serialNumber: "1656322" }
+  });
+  assert.equal(nextErr, undefined);
+  assert.equal(sent.nuban.length, 10);
+  assert.match(sent.nuban, /^\d{10}$/);
+  assert.equal(sent.serialNumber, "001656322");
+  assert.equal(isBankAccountValid(sent.nuban, "058"), true);
+});
+
+test("createAccountWithSerial works for 5-digit MFB codes", () => {
+  const { sent, nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "50515" },
+    body: { serialNumber: "1656322" }
+  });
+  assert.equal(nextErr, undefined);
+  assert.equal(isBankAccountValid(sent.nuban, "50515"), true);
+});
+
+test("createAccountWithSerial rejects unknown bank code with 404", () => {
+  const { sent, nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "000" },
+    body: { serialNumber: "1" }
+  });
+  assert.equal(sent, undefined);
+  assert.equal(nextErr.statusCode, 404);
+  assert.equal(nextErr.name, "NotFoundError");
+});
+
+test("createAccountWithSerial rejects banks with usesNuban=false", () => {
+  const { sent, nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "999991" }, // PALMPAY
+    body: { serialNumber: "1656322" }
+  });
+  assert.equal(sent, undefined);
+  assert.equal(nextErr.statusCode, 400);
+  assert.equal(nextErr.name, "BadRequestError");
+  assert.match(nextErr.message, /does not use NUBAN/);
+});
+
+test("createAccountWithSerial rejects missing body", () => {
+  const { sent, nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "058" },
+    body: undefined
+  });
+  assert.equal(sent, undefined);
+  assert.equal(nextErr.statusCode, 400);
+  assert.equal(nextErr.name, "BadRequestError");
+});
+
+test("createAccountWithSerial rejects missing serialNumber", () => {
+  const { nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "058" },
+    body: {}
+  });
+  assert.equal(nextErr.statusCode, 400);
+});
+
+test("createAccountWithSerial rejects non-string serialNumber", () => {
+  const { nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "058" },
+    body: { serialNumber: 12345 }
+  });
+  assert.equal(nextErr.statusCode, 400);
+});
+
+test("createAccountWithSerial rejects non-digit serialNumber", () => {
+  const { nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "058" },
+    body: { serialNumber: "abc" }
+  });
+  assert.equal(nextErr.statusCode, 400);
+});
+
+test("createAccountWithSerial rejects empty serialNumber", () => {
+  const { nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "058" },
+    body: { serialNumber: "" }
+  });
+  assert.equal(nextErr.statusCode, 400);
+});
+
+test("createAccountWithSerial rejects serialNumber longer than 9 digits", () => {
+  const { nextErr } = callHandler(createAccountWithSerial, {
+    params: { bank: "058" },
+    body: { serialNumber: "1234567890" }
+  });
+  assert.equal(nextErr.statusCode, 400);
+});
+
+test("generateCheckDigit returns a single digit 0-9", () => {
+  const d = generateCheckDigit("001656322", "058");
+  assert.ok(Number.isInteger(d) && d >= 0 && d <= 9);
+});
+
+test("generateCheckDigit throws for invalid bank code length", () => {
+  assert.throws(() => generateCheckDigit("000000001", "12"));
+});
+
+test("padBankCode handles 3, 5, and 6-digit codes", () => {
+  assert.equal(padBankCode("058"), "000058");
+  assert.equal(padBankCode("50515"), "950515");
+  assert.equal(padBankCode("120001"), "120001");
+});
+
+test("isPhoneNumber detects MTN/Airtel/Glo/9mobile prefixes", () => {
+  assert.equal(isPhoneNumber("8031234567"), true);
+  assert.equal(isPhoneNumber("8021234567"), true);
+  assert.equal(isPhoneNumber("8051234567"), true);
+  assert.equal(isPhoneNumber("8091234567"), true);
+  assert.equal(isPhoneNumber("1234567890"), false);
+  assert.equal(isPhoneNumber("803123"), false);
+  assert.equal(isPhoneNumber(""), false);
+});
+
+test("banks data contains both NUBAN and non-NUBAN entries", () => {
+  assert.ok(banks.some(b => b.usesNuban === true));
+  assert.ok(banks.some(b => b.usesNuban === false));
+  assert.ok(banks.find(b => b.code === "999991" && b.usesNuban === false));
+});
