@@ -7,6 +7,14 @@ class NotFoundError extends Error {
   }
 }
 
+class BadRequestError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'BadRequestError';
+    this.statusCode = 400;
+  }
+}
+
 // Nigerian mobile phone number prefixes (without leading 0)
 // These are used to detect if an account number is actually a phone number
 const phoneNumberPrefixes = [
@@ -395,8 +403,25 @@ module.exports = {
       );
     }
 
+    if (bank.usesNuban === false) {
+      return next(
+        new BadRequestError(
+          `${bank.name} does not use NUBAN. Accounts for this bank are phone-number based and cannot be generated via this endpoint.`
+        )
+      );
+    }
+
+    const rawSerial = req.body && req.body.serialNumber;
+    if (typeof rawSerial !== "string" || !/^\d{1,9}$/.test(rawSerial)) {
+      return next(
+        new BadRequestError(
+          `serialNumber must be a string of 1-${serialNumLength} digits`
+        )
+      );
+    }
+
     try {
-      let serialNumber = req.body.serialNumber.padStart(serialNumLength, "0");
+      let serialNumber = rawSerial.padStart(serialNumLength, "0");
       let nuban = `${serialNumber}${generateCheckDigit(
         serialNumber,
         bankCode
@@ -529,3 +554,14 @@ const isBankAccountValid = (accountNumber, bankCode) => {
     return false;
   }
 };
+
+Object.assign(module.exports, {
+  banks,
+  generateCheckDigit,
+  isBankAccountValid,
+  isPhoneNumber,
+  padBankCode,
+  reconstructPhoneNumber,
+  BadRequestError,
+  NotFoundError
+});
