@@ -1,64 +1,31 @@
 # NUBAN Validator & Generator
 
-> A modern Node.js API for validating and generating Nigerian Uniform Bank Account Numbers (NUBAN) based on CBN standards.
+> A modern Node.js API for validating, predicting, and generating Nigerian Uniform Bank Account Numbers (NUBAN) based on CBN standards.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D14.0.0-brightgreen)](https://nodejs.org)
 
 ## Overview
 
-This REST API implements the Central Bank of Nigeria's (CBN) NUBAN algorithm for validating and generating 10-digit bank account numbers. It supports **176 Nigerian financial institutions** including commercial banks, microfinance banks, payment service banks, merchant banks, and digital payment platforms.
+This REST API implements the Central Bank of Nigeria's (CBN) NUBAN algorithm for validating and generating 10-digit bank account numbers. Given an account number alone, it predicts the bank(s) it could belong to, ranks them by likelihood, and detects when an "account number" is actually a phone number used by a Payment Service Bank. It ships with **176 Nigerian financial institutions** loaded from an editable data file.
 
 ### What is NUBAN?
 
-NUBAN (Nigerian Uniform Bank Account Number) is a standard 10-digit account number format implemented by the CBN to enable seamless electronic payments across all Nigerian banks. The format includes a check digit for validation purposes.
+NUBAN (Nigerian Uniform Bank Account Number) is a standard 10-digit account number format implemented by the CBN to enable seamless electronic payments across all Nigerian banks. The last digit is a **check digit** mathematically derived from the bank code and the 9-digit serial — which is what makes bank prediction from an account number possible.
 
 ## Key Features
 
-- ✅ **Comprehensive Bank Coverage**: 176 Nigerian financial institutions including commercial, microfinance, payment service, mortgage, and merchant banks
-- ✅ **Modern Algorithm**: Based on [03balogun's implementation](https://github.com/03balogun/nuban-bank-prediction-algorithm) with [CBN 2020 Revised Standards](https://www.cbn.gov.ng/out/2020/psmd/revised%20standards%20on%20nigeria%20uniform%20bank%20account%20number%20(nuban)%20for%20banks%20and%20other%20financial%20institutions%20.pdf)
-- ✅ **Multi-Code Support**: Handles 3-digit (commercial banks), 5-digit (microfinance banks), and 6-digit (payment service banks) CBN bank codes
-- ✅ **Phone Number Detection**: Automatically detects when account numbers are Nigerian phone numbers (used by Payment Service Banks)
-- ✅ **Hybrid Validation**: Returns both NUBAN-valid banks and phone-number-based banks in a single response
-- ✅ **Fintech Ready**: Supports Moniepoint, Kuda, Carbon, FairMoney, PalmPay, OPay, and other digital banks
-- ✅ **RESTful API**: Easy-to-use endpoints for validation and generation
-- ✅ **Well Tested**: Comprehensive test suite included
-
-The implementation includes **176 Nigerian financial institutions** across multiple categories:
-
-### Commercial Banks (30+)
-Access Bank, Access Bank (Diamond), Citibank Nigeria, Ecobank Nigeria, Fidelity Bank, First Bank of Nigeria, First City Monument Bank, Globus Bank, Guaranty Trust Bank, Heritage Bank, Jaiz Bank, Keystone Bank, Lotus Bank, Parallex Bank, Polaris Bank, Providus Bank, Stanbic IBTC Bank, Standard Chartered Bank, Sterling Bank, Suntrust Bank, Taj Bank, Titan Trust Bank, Union Bank of Nigeria, United Bank for Africa, Unity Bank, Wema Bank, Zenith Bank, Optimus Bank Limited, Signature Bank Ltd, PremiumTrust Bank, The Alternative Bank
-
-### Microfinance Banks (100+)
-Popular digital banks: Carbon, Eyowo, FairMoney Microfinance Bank, Kuda Bank, Moniepoint Microfinance Bank, Sparkle Microfinance Bank, VFD Microfinance Bank, Rubies MFB
-
-Other notable MFBs: Accion, Baobab, Consumer, Grooming, Hackman, Ibile, Mint, Tangerine, Above Only, Abulesoro, Aella, Ahmadu Bello University MFB, Aku, Amegy, Amju Unique, Ampersand, Aramoko, Avuenegbe, Awacash, Bainescredit, Banc Corp, Bellbank, Benysta, Beststar, Bowen, Cashbridge, Cashconnect, CEMCS, Chanelle, Chikum, Corestep, Crescent, Crust, Davenport, Dot, Ekimogun, Ekondo, Excel Finance, Fedeth, Firmus, First Royal, Futminna, Goldman, Good Shepherd, GoodNews, Hasal, Ibank, Ikoyi Osun, Ilaro Poly, Imowo, Infinity, Isua, Kadpoly, Kanopoly, Kredi Money, Links, Loma, Mainstreet, Mayfair, Mutual Benefits, NDCC, Net, Nigerian Navy MFB, NPF, Pathfinder, Peace, Pecantrust, Personal Trust, Petra, Polyunwana, Quickfund, Randalpha, Rehoboth, Rephidim, Rigo, Rockshield, Safe Haven, Shield, Solid Allianze, Solid Rock, Stanford, Stateside, Stellas, Supreme, Transpay, U&C, Ucee, Uhuru, UNAAB, UNICAL, UNILAG, Uzondu, Waya, Astrapolaris, and more.
-
-### Payment Service Banks (7)
-These banks use phone numbers as account numbers instead of NUBAN:
-- 9Mobile 9Payment Service Bank
-- Airtel SmartCash PSB
-- Hope PSB
-- MTN MoMo PSB
-- PalmPay
-- OPay Digital Services Limited
-- Money Master PSB
-
-### Digital Payment Platforms (7)
-Paga, GoMoney, KongaPay, Parkway, Parkway - ReadyCash, Premium Trust Bank, Paystack-Titan
-
-### Mortgage Banks (11)
-Abbey Mortgage Bank, Aso Savings and Loans, AG Mortgage Bank, Imperial Homes Mortgage Bank, Citycode Mortgage Bank, Lagos Building Investment Company PLC, Living Trust Mortgage Bank, FirstTrust Mortgage Bank Nigeria, Gateway Mortgage Bank Ltd, Refuge Mortgage Bank, Platinum Mortgage Bank
-
-### Merchant Banks (5)
-Coronation Merchant Bank, FSDH Merchant Bank, Greenwich Merchant Bank, Nova Merchant Bank, Rand Merchant Bank
-
-### Finance Companies (7)
-Branch International Financial Services Limited, County Finance Limited, PFI Finance Company Limited, Prosperis Finance Limited, Vale Finance Limited, Sage Grey Finance Limited, Pocket App
+- ✅ **Bank prediction** — given a 10-digit account number, returns every bank whose check digit matches
+- ✅ **Confidence ranking** — each match carries a score combining bank popularity *and* the account number's own prefix signal
+- ✅ **Prefix → issuer signal** — known issuing ranges (e.g. Kuda, Moniepoint) boost the right bank as a tiebreaker among equally-valid matches
+- ✅ **Resilient name matching** — ranking is decoupled from exact-string bank names, so a casing/punctuation edit no longer silently drops a bank's score
+- ✅ **Configurable bank registry** — the bank list lives in `data/banks.json` and can be swapped at runtime via an env var; no code edit required
+- ✅ **NUBAN generation** — build a valid 10-digit account number from a serial + bank code
+- ✅ **Phone-number detection** — recognizes phone numbers used by PSBs (PalmPay, OPay, MTN MoMo, Airtel SmartCash) and returns them separately
+- ✅ **Multi-code support** — 3-digit (commercial), 5-digit (microfinance), and 6-digit (PSB) CBN codes
+- ✅ **Well tested** — 21 tests covering the algorithm, ranking, prefix boosts, and endpoints
 
 ## Quick Start
-
-### Installation
 
 ```bash
 # Clone the repository
@@ -72,7 +39,7 @@ npm install
 node server.js
 ```
 
-The API will be available at `http://localhost:3000`
+The API will be available at `http://localhost:3000`.
 
 ### Prerequisites
 
@@ -81,60 +48,65 @@ The API will be available at `http://localhost:3000`
 
 ## API Reference
 
-### 1. Get Possible Banks for an Account Number
+### 1. Predict banks for an account number
 
-Returns all banks where a given 10-digit account number could be valid.
+Returns every bank where a given 10-digit account number is a valid NUBAN, ranked by confidence (highest first). If the account number looks like a Nigerian phone number, the relevant Payment Service Banks are returned in `phoneMatches`.
 
-Given any 10-digit Nigerian bank account number, this endpoint returns a comprehensive response including:
-- NUBAN-valid banks (banks where the account number passes NUBAN validation)
-- Phone number detection (if the account number appears to be a Nigerian phone number)
-- Phone-number-based banks (Payment Service Banks that use phone numbers as account numbers)
-
-**Use Case**: A common application of this algorithm in Nigeria is to reduce the bank selection list from 200+ banks to 3-5 options after a user enters their account number. This is especially useful for USSD interfaces with limited screen space. The phone number detection feature is particularly useful for Payment Service Banks like PalmPay, OPay, MTN MoMo, and Airtel SmartCash.
+**Use case**: reduce a 200+ bank selection list to a handful of ranked options after a user types their account number — especially valuable for USSD interfaces with limited screen space.
 
 **Endpoint:**
 ```
 GET /accounts/{10-digit-account-number}/banks
 ```
 
-**Example Request (NUBAN Account):**
+**Example — NUBAN account:**
 ```bash
 curl http://localhost:3000/accounts/4000675874/banks
 ```
 
-**Example Response (NUBAN Account):**
 ```json
 {
   "accountNumber": "4000675874",
   "isPhoneNumber": false,
   "phoneNumber": null,
   "nubanMatches": [
-    {
-      "name": "FIDELITY BANK",
-      "code": "070",
-      "usesNuban": true
-    },
-    {
-      "name": "GUARANTY TRUST BANK",
-      "code": "058",
-      "usesNuban": true
-    },
-    {
-      "name": "MONIEPOINT MICROFINANCE BANK",
-      "code": "50515",
-      "usesNuban": true
-    }
+    { "name": "MONIEPOINT MICROFINANCE BANK", "code": "50515", "usesNuban": true, "confidence": 490 },
+    { "name": "GUARANTY TRUST BANK", "code": "058", "usesNuban": true, "confidence": 430 },
+    { "name": "FIDELITY BANK", "code": "070", "usesNuban": true, "confidence": 380 },
+    { "name": "PAGA", "code": "100002", "usesNuban": true, "confidence": 340 }
   ],
-  "phoneMatches": []
+  "phoneMatches": [],
+  "totalMatches": 18
 }
 ```
 
-**Example Request (Phone Number Account):**
+**Example — prefix signal (Kuda account starting `110`):**
+```bash
+curl http://localhost:3000/accounts/1100000129/banks
+```
+
+```json
+{
+  "accountNumber": "1100000129",
+  "isPhoneNumber": false,
+  "phoneNumber": null,
+  "nubanMatches": [
+    { "name": "KUDA BANK", "code": "50211", "usesNuban": true, "confidence": 720 },
+    { "name": "UNITY BANK", "code": "215", "usesNuban": true, "confidence": 210 },
+    { "name": "LOTUS BANK", "code": "303", "usesNuban": true, "confidence": 140 }
+  ],
+  "phoneMatches": [],
+  "totalMatches": 23
+}
+```
+
+Kuda's confidence is `720` = `470` (popularity) + `250` (prefix boost, because the account starts with a Kuda issuing prefix), lifting it above other equally-valid matches.
+
+**Example — phone-number account:**
 ```bash
 curl http://localhost:3000/accounts/8031234567/banks
 ```
 
-**Example Response (Phone Number Account):**
 ```json
 {
   "accountNumber": "8031234567",
@@ -142,143 +114,94 @@ curl http://localhost:3000/accounts/8031234567/banks
   "phoneNumber": "08031234567",
   "nubanMatches": [],
   "phoneMatches": [
-    {
-      "name": "9MOBILE 9PAYMENT SERVICE BANK",
-      "code": "120001",
-      "usesNuban": false
-    },
-    {
-      "name": "AIRTEL SMARTCASH PSB",
-      "code": "120004",
-      "usesNuban": false
-    },
-    {
-      "name": "HOPE PSB",
-      "code": "120002",
-      "usesNuban": false
-    },
-    {
-      "name": "MTN MOMO PSB",
-      "code": "120003",
-      "usesNuban": false
-    },
-    {
-      "name": "PALMPAY",
-      "code": "999991",
-      "usesNuban": false
-    },
-    {
-      "name": "OPAY DIGITAL SERVICES LIMITED (OPAY)",
-      "code": "999992",
-      "usesNuban": false
-    },
-    {
-      "name": "MONEY MASTER PSB",
-      "code": "946",
-      "usesNuban": false
-    }
-  ]
+    { "name": "OPAY DIGITAL SERVICES LIMITED (OPAY)", "code": "999992", "usesNuban": false, "confidence": 1500 },
+    { "name": "PALMPAY", "code": "999991", "usesNuban": false, "confidence": 1480 },
+    { "name": "9MOBILE 9PAYMENT SERVICE BANK", "code": "120001", "usesNuban": false, "confidence": 1310 }
+  ],
+  "totalMatches": 7
 }
 ```
 
-**Response Model**
+**Response model**
 
-- `accountNumber`: The 10-digit account number queried
-- `isPhoneNumber`: Boolean indicating if the account number matches a Nigerian phone number pattern
-- `phoneNumber`: The reconstructed 11-digit phone number (with leading 0) if `isPhoneNumber` is true, otherwise null
-- `nubanMatches`: Array of banks where the account number passes NUBAN validation. Each bank object contains:
-  - `name`: The name of the Nigerian bank
-  - `code`: The CBN unique identifier for the bank (3, 5, or 6 digits)
-  - `usesNuban`: Always `true` for NUBAN matches
-- `phoneMatches`: Array of Payment Service Banks that use phone numbers as account numbers. Only populated when `isPhoneNumber` is true. Each bank object contains:
-  - `name`: The name of the Payment Service Bank
-  - `code`: The CBN unique identifier for the bank
-  - `usesNuban`: Always `false` for phone-number-based banks
+| Field | Description |
+|-------|-------------|
+| `accountNumber` | The 10-digit account number queried |
+| `isPhoneNumber` | `true` if the number matches a Nigerian mobile prefix |
+| `phoneNumber` | Reconstructed 11-digit phone number (leading `0`) when `isPhoneNumber` is true, else `null` |
+| `nubanMatches` | Banks whose check digit matches, sorted by `confidence` desc. Each: `{ name, code, usesNuban: true, confidence }` |
+| `phoneMatches` | Payment Service Banks (phone-based). Only populated when `isPhoneNumber` is true. Each: `{ name, code, usesNuban: false, confidence }` |
+| `totalMatches` | `nubanMatches.length + phoneMatches.length` |
 
-**Phone Number Detection**
+### 2. Generate an account number
 
-The system automatically detects Nigerian phone numbers by checking if the 10-digit account number starts with known mobile network prefixes:
-- **MTN**: 803, 806, 703, 706, 813, 816, 810, 814, 903, 906, 913, 916
-- **Airtel**: 802, 808, 708, 812, 701, 902, 901, 907, 912
-- **Globacom (Glo)**: 805, 807, 705, 815, 811, 905, 915
-- **9mobile**: 809, 817, 818, 908, 909
-
-### 2. Generate Account Number
-
-Generates a valid 10-digit NUBAN account number from a 9-digit serial number and bank code.
+Generates a valid 10-digit NUBAN from a serial number (≤ 9 digits, left zero-padded) and a bank code.
 
 **Endpoint:**
 ```
 POST /banks/{bank-code}/accounts
 Content-Type: application/json
 
-{
-  "serialNumber": "string"
-}
+{ "serialNumber": "string" }
 ```
 
-**Note**: 
-- `serialNumber` should be 9 digits or less. If less than 9 digits, it will be left zero-padded.
-- Currently, the endpoint only accepts 3-digit bank codes in the URL path. However, the underlying algorithm supports 3-digit, 5-digit, and 6-digit codes. To generate accounts for banks with 5 or 6-digit codes, you can use the algorithm directly in your code.
-
-**Example Request (Commercial Bank - 3-digit code):**
+**Example:**
 ```bash
 curl -X POST http://localhost:3000/banks/058/accounts \
   -H "Content-Type: application/json" \
   -d '{"serialNumber": "1656322"}'
 ```
 
-**Example Response:**
 ```json
 {
   "serialNumber": "001656322",
   "nuban": "0016563228",
   "bankCode": "058",
-  "bank": {
-    "name": "GUARANTY TRUST BANK",
-    "code": "058",
-    "usesNuban": true
-  }
+  "bank": { "name": "GUARANTY TRUST BANK", "code": "058", "usesNuban": true }
 }
 ```
 
-**Example Request (Microfinance Bank - 5-digit code):**
+**Validation:** the bank code must be 3–6 digits and must exist in the registry; the serial must be a string of 1–9 digits. Banks with `usesNuban: false` (PSBs) are rejected — their account numbers are phone numbers and cannot be generated.
+
+## How Ranking Works
+
+Each candidate bank gets a `confidence` score, summed from up to three signals:
+
+| Signal | Points | When |
+|--------|--------|------|
+| **PSB phone boost** | +1000 | Account looks like a phone number and the bank is a PSB |
+| **Popularity** | 50–500 | Bank is in the top-50-by-transaction-volume table |
+| **Type base score** | 5–40 | Bank not in the popularity table (40 commercial / 20 MFB / 10 PSB / 5 other) |
+| **Prefix boost** | +250 | Account number starts with one of the bank's known issuing prefixes |
+
+### Prefix → issuer signal
+
+Some banks issue NUBAN serials in known leading-digit ranges, so the account number's own prefix disambiguates when several banks all produce a valid check digit. Configured in `routes/nuban_util.js`:
+
+| Bank | Account prefixes |
+|------|-----------------|
+| **Kuda Bank** | `110`, `20`, `30`, `70` |
+| **Moniepoint MFB** | `56`, `54`, `81`, `50`, `53`, `55`, `82`, `63`, `58`, `57`, `59`, `65`, `90` |
+
+The boost is a **bounded tiebreaker** (`PREFIX_BOOST = 250`), not a hard override: it reorders already-valid matches but never forces a match the check-digit math rejects. The `2`-digit Kuda prefixes are intentionally broad, which is why the signal nudges rather than dictates.
+
+### Resilient name matching
+
+Popularity and prefix lookups are keyed on a **normalized** bank name (`normalizeName()` — uppercase, collapse non-alphanumerics to single spaces, trim) rather than the exact string. This means a casing, punctuation, or whitespace edit to a bank name in the registry no longer silently drops it to the base score. Whitespace is preserved as a token boundary, so banks sharing a first word (e.g. `FIRST BANK OF NIGERIA` vs `FIRST CITY MONUMENT BANK`) stay distinct.
+
+## Configuration
+
+| Env var | Default | Purpose |
+|---------|---------|---------|
+| `PORT` | `3000` | HTTP port |
+| `NUBAN_BANKS_PATH` | `data/banks.json` | Path (absolute or relative) to the bank registry JSON. Override to use a custom or updated bank list without editing code. |
+
 ```bash
-curl -X POST http://localhost:3000/banks/50515/accounts \
-  -H "Content-Type: application/json" \
-  -d '{"serialNumber": "400067587"}'
+# Run with a custom bank list
+NUBAN_BANKS_PATH=/path/to/my-banks.json node server.js
 ```
 
-**Note on 5 and 6-digit Bank Codes**: The POST endpoint currently only accepts 3-digit bank codes in the URL. For microfinance banks (5-digit codes) or payment service banks (6-digit codes), you would need to modify the route or use the algorithm functions directly. The algorithm itself fully supports all code lengths.
-
-## Supported Banks
-
-### By Category
-
-| Category | Count | Examples |
-|----------|-------|----------|
-| **Commercial Banks** | 30+ | Access Bank, GTBank, Zenith Bank, First Bank, UBA |
-| **Microfinance Banks** | 100+ | Kuda Bank, Moniepoint, Carbon, FairMoney, VFD |
-| **Payment Service Banks** | 7 | PalmPay, OPay, MTN MoMo PSB, Airtel SmartCash PSB |
-| **Merchant Banks** | 5 | FSDH, Nova, Coronation, Greenwich, Rand Merchant |
-| **Mortgage Banks** | 10+ | Abbey Mortgage Bank, AG Mortgage, Living Trust |
-| **Finance Companies** | 8+ | Branch International, Prosperis Finance, Vale Finance |
-| **Digital Platforms** | 6+ | Paga, GoMoney, KongaPay, Parkway, Pocket App |
-
-### Popular Banks
-
-- Access Bank (044, 063)
-- GTBank (058)
-- Zenith Bank (057)
-- First Bank (011)
-- UBA (033)
-- Wema Bank (035)
-- Kuda Bank (50211)
-- Moniepoint (50515)
-- PalmPay (999991)
-- OPay (999992)
-
-[View full bank list in code](routes/nuban_util.js)
+The registry file is a JSON array of `{ "name": string, "code": string, "usesNuban": boolean }` objects.
 
 ## How the NUBAN Algorithm Works
 
@@ -295,23 +218,21 @@ A NUBAN follows this structure: **ABC-DEFGHIJKL-M**
 
 ### Algorithm Details
 
-The algorithm uses weighted multiplication with separate weight arrays:
+**Weight arrays:**
+- Bank code weights: `[3, 7, 3, 3, 7, 3]` (6 digits)
+- Serial number weights: `[3, 7, 3, 3, 7, 3, 3, 7, 3]` (9 digits)
 
-**Weight Arrays:**
-- Bank Code Weights: `[3, 7, 3, 3, 7, 3]` (6 digits)
-- Serial Number Weights: `[3, 7, 3, 3, 7, 3, 3, 7, 3]` (9 digits)
+**Bank code padding:**
+- 3-digit codes → prefix with `"000"` → `058` → `000058`
+- 5-digit codes → prefix with `"9"` → `50515` → `950515`
+- 6-digit codes → use as-is → `999991`
 
-**Bank Code Padding:**
-- 3-digit codes → Prefix with `"000"` → 6 digits (e.g., `058` → `000058`)
-- 5-digit codes → Prefix with `"9"` → 6 digits (e.g., `50515` → `950515`)
-- 6-digit codes → Use as-is (e.g., `999991` → `999991`)
-
-**Calculation Steps:**
-1. Pad bank code to 6 digits using rules above
-2. Calculate weighted sum for bank code: `sum(digit[i] × weight[i])`
-3. Calculate weighted sum for serial number: `sum(digit[i] × weight[i])`
-4. Add both sums and take modulo 10: `(bankCodeSum + serialSum) % 10`
-5. Check digit = `10 - (sum % 10)`, or `0` if result is `10`
+**Calculation:**
+1. Pad bank code to 6 digits
+2. Weighted sum of bank code: `Σ digit[i] × weight[i]`
+3. Weighted sum of serial: `Σ digit[i] × weight[i]`
+4. `(bankCodeSum + serialSum) % 10`
+5. Check digit = `10 - remainder`, or `0` if the result is `10`
 
 ### Example Calculation
 
@@ -332,24 +253,40 @@ Total: 99 + 167 = 266
 Check Digit: 10 - 6 = 4 ✓ (matches last digit!)
 ```
 
+## Supported Banks
+
+176 institutions across commercial banks, microfinance banks, payment service banks, mortgage banks, merchant banks, finance companies, and digital payment platforms.
+
+| Category | Examples |
+|----------|----------|
+| **Commercial Banks** | Access Bank, GTBank, Zenith Bank, First Bank, UBA, Wema |
+| **Microfinance Banks** | Kuda Bank, Moniepoint, Carbon, FairMoney, VFD, Sparkle |
+| **Payment Service Banks** | PalmPay, OPay, MTN MoMo PSB, Airtel SmartCash PSB |
+| **Merchant Banks** | FSDH, Nova, Coronation, Greenwich, Rand Merchant |
+| **Mortgage Banks** | Abbey Mortgage Bank, AG Mortgage, Living Trust |
+| **Finance Companies** | Branch International, Prosperis Finance, Vale Finance |
+| **Digital Platforms** | Paga, GoMoney, KongaPay, Parkway, Pocket App |
+
+The full list lives in [data/banks.json](data/banks.json).
+
+### Phone-number detection prefixes
+
+A 10-digit account is treated as a phone number if it starts with a known mobile prefix:
+
+- **MTN**: 803, 806, 703, 706, 813, 816, 810, 814, 903, 906, 913, 916
+- **Airtel**: 802, 808, 708, 812, 701, 902, 901, 907, 912
+- **Globacom (Glo)**: 805, 807, 705, 815, 811, 905, 915
+- **9mobile**: 809, 817, 818, 908, 909
+
 ## Testing
 
-### Test Any Account Number
 ```bash
-node test_any_account.js <account-number>
+# Full test suite (node:test)
+npm test
 
-# Example
+# Inspect every match for a single account number
 node test_any_account.js 4000675874
 ```
-
-Shows all possible banks where the account number is valid.
-
-### Run Comprehensive Test Suite
-```bash
-node test_updated_implementation.js
-```
-
-Runs comprehensive tests on multiple account numbers across different bank types.
 
 ## Project Structure
 
@@ -357,228 +294,68 @@ Runs comprehensive tests on multiple account numbers across different bank types
 Nigeria-Bank-Account-NUBAN-Algorithm/
 ├── server.js                         # Express server entry point
 ├── package.json                      # Dependencies and metadata
+├── data/
+│   └── banks.json                    # Editable bank registry (176 banks)
 ├── routes/
-│   └── nuban_util.js                # Core NUBAN algorithm + 176 bank definitions
-├── test_any_account.js              # CLI tool: test any account number
-├── test_updated_implementation.js   # Comprehensive test suite
+│   └── nuban_util.js                 # NUBAN algorithm, ranking, prefix signals
+├── test_any_account.js               # CLI: inspect matches for an account
+├── test_updated_implementation.js    # Test suite
 └── README.md                         # This file
 ```
 
-## Comparison with Original Implementation
+## Known Limitations
 
-**Key Differences from Original Version**:
+1. **Multiple matches by design** — the same serial with different bank codes can yield the same check digit, so an account can be valid for several banks. Ranking narrows it; the user still confirms their bank.
+2. **PSBs don't use NUBAN** — PSB account numbers are phone numbers, validated/returned separately (`phoneMatches`), not via the check-digit sweep.
+3. **CBN codes ≠ NIP codes** — this uses CBN bank codes for NUBAN validation; NIBSS NIP codes (interbank transfers) are a different numbering system.
+4. **Prefix signal is heuristic** — issuing-range prefixes (Kuda, Moniepoint) are a bounded tiebreaker, best tuned with real transaction data via the `PREFIX_BOOST` constant and the prefix map.
+5. **Registry currency** — Nigeria's banking sector evolves; newly licensed institutions can be added by editing `data/banks.json` (or pointing `NUBAN_BANKS_PATH` at your own list).
 
-| Feature | Original (2017) | Updated (2026) |
-|---------|----------------|----------------|
-| **Algorithm** | Single 12-digit seed | Separate weight arrays |
-| **Bank Codes** | 3-digit only | 3, 5, and 6-digit |
-| **Banks** | 22 commercial banks | 200+ financial institutions (all types) |
-| **Microfinance** | Not supported | ✅ 100+ banks |
-| **PSBs** | Not supported | ✅ 7 banks (with phone detection) |
-| **Digital Platforms** | Not supported | ✅ 7 platforms |
-| **Phone Detection** | Not supported | ✅ Automatic detection |
-| **CBN Standards** | 2010 Original | 2020 Revised |
+## How do I add or update a bank?
 
-## Real-World Examples
+Edit [data/banks.json](data/banks.json) — no code change needed:
 
-### Example 1: Moniepoint Account (NUBAN)
-```bash
-# Moniepoint account
-curl http://localhost:3000/accounts/4000675874/banks
-# Returns: Fidelity Bank, GTBank, Moniepoint MFB
+```json
+{ "name": "NEW BANK NAME", "code": "123", "usesNuban": true }
 ```
-**Response**: Returns NUBAN matches including Fidelity Bank, GTBank, and **Moniepoint MFB** (now detected with 5-digit code support!)
 
-### Example 2: PalmPay Account (Phone Number)
-```bash
-curl http://localhost:3000/accounts/8031234567/banks
-```
-**Response**: 
-- `isPhoneNumber: true`
-- `phoneNumber: "08031234567"`
-- `phoneMatches`: All 7 Payment Service Banks including **PalmPay**, **OPay**, **MTN MoMo**, etc.
-
-This demonstrates the phone number detection feature - when a user enters a phone number as their account number, the system automatically identifies it and returns all Payment Service Banks that use phone numbers.
-
-### Example 3: Regular Bank Account
-```bash
-curl http://localhost:3000/accounts/1234567890/banks
-```
-**Response**: Returns NUBAN matches including Access Bank, First Bank, UBA, and other banks where this account number is valid.
-
-### Example 4: Generate GTBank Account
-```bash
-curl -X POST http://localhost:3000/banks/058/accounts \
-  -H "Content-Type: application/json" \
-  -d '{"serialNumber": "123456789"}'
-```
-**Response**: Generates valid GTBank account number with check digit
+Use `usesNuban: false` for phone-based PSBs. To rank a bank or give it a prefix signal, add it to `bankPopularity` / `issuerPrefixesByBank` in [routes/nuban_util.js](routes/nuban_util.js).
 
 ## Standards & References
 
-This implementation is based on:
-
 - [CBN NUBAN Original Specification (2010)](https://www.cbn.gov.ng/OUT/2011/CIRCULARS/BSPD/NUBAN%20PROPOSALS%20V%200%204-%2003%2009%202010.PDF)
 - [CBN Revised NUBAN Standards (March 2020)](https://www.cbn.gov.ng/out/2020/psmd/revised%20standards%20on%20nigeria%20uniform%20bank%20account%20number%20(nuban)%20for%20banks%20and%20other%20financial%20institutions%20.pdf)
-- [03balogun NUBAN Implementation](https://github.com/03balogun/nuban-bank-prediction-algorithm)
-
-## Known Limitations
-
-1. **Multiple Bank Matches**: The same account number can be valid for multiple banks. This is by design - the same serial number with different bank codes can produce the same check digit. Users must select their specific bank from the returned list.
-
-2. **Phone Number vs NUBAN**: Payment Service Banks (PSBs) use phone numbers as account numbers. These don't follow NUBAN validation but are detected separately.
-
-3. **NIP Codes vs CBN Codes**: This implementation uses CBN bank codes for NUBAN validation. NIP codes (Nigeria Interbank Settlement System) used for interbank transfers are different and cannot be used for NUBAN validation.
-
-4. **Bank List Currency**: While we've expanded to 200+ financial institutions, Nigeria's banking sector continues to evolve. New banks and fintech providers may need to be added periodically.
-
-5. **POST Endpoint Limitation**: The POST endpoint for generating accounts (`/banks/{bank-code}/accounts`) currently only accepts 3-digit bank codes in the URL path due to route constraints. The underlying algorithm fully supports 3, 5, and 6-digit codes. For banks with longer codes, you can use the algorithm functions directly in your code.
-
-6. **Phone Number Detection**: Phone number detection is based on known mobile network prefixes. While this covers the major networks (MTN, Airtel, Glo, 9mobile), new prefixes or network changes may require updates.
-
-## Phone Number Detection Feature
-
-This implementation includes intelligent phone number detection for Payment Service Banks (PSBs). Here's how it works:
-
-### How It Works
-
-1. **Detection**: When a 10-digit account number is queried, the system checks if it starts with known Nigerian mobile network prefixes (MTN, Airtel, Glo, 9mobile).
-
-2. **Reconstruction**: If detected as a phone number, the system reconstructs the full 11-digit phone number by adding a leading "0".
-
-3. **Bank Matching**: All Payment Service Banks that use phone numbers as account numbers are returned in the `phoneMatches` array.
-
-### Use Cases
-
-- **USSD Banking**: Users often enter phone numbers when prompted for account numbers on USSD platforms
-- **Payment Service Banks**: PSBs like PalmPay, OPay, MTN MoMo use phone numbers directly as account numbers
-- **User Experience**: Reduces friction by automatically detecting phone numbers and showing relevant PSB options
-
-### Supported Phone Prefixes
-
-The system recognizes prefixes from all major Nigerian mobile networks:
-- **MTN Nigeria**: 803, 806, 703, 706, 813, 816, 810, 814, 903, 906, 913, 916
-- **Airtel Nigeria**: 802, 808, 708, 812, 701, 902, 901, 907, 912
-- **Globacom (Glo)**: 805, 807, 705, 815, 811, 905, 915
-- **9mobile**: 809, 817, 818, 908, 909
-
-## Configuration
-
-You can customize the server by setting environment variables:
-
-```bash
-# Set port (default: 3000)
-export PORT=8080
-
-# Set environment (default: development)
-export NODE_ENV=production
-
-# Set base URL (default: http://localhost:3000)
-export BASE_URL=https://api.example.com
-
-# Start server
-node server.js
-```
-
-## Contributing
-
-Contributions are welcome! Here's how you can help:
-
-### Areas for Contribution
-- Adding newly licensed banks
-- Improving test coverage
-- Performance optimizations
-- API documentation improvements
-- Adding new endpoints (bulk validation, bank search, etc.)
-
-### How to Contribute
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests if applicable
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## Roadmap
-
-- [ ] Add endpoint to list all supported banks
-- [ ] Add bank lookup by code or name
-- [ ] Implement bulk validation endpoint
-- [ ] Extend POST endpoint to support 5 and 6-digit bank codes
-- [ ] Add rate limiting and API authentication
-- [ ] Add OpenAPI/Swagger documentation
-- [ ] Deploy to cloud platform (Heroku, AWS, Azure)
-- [ ] Add bank logo URLs to responses
-- [ ] Implement caching for frequently queried accounts
-- [ ] Create NPM package for direct library usage
-- [ ] Add webhook support for real-time validation
-- [ ] Add support for additional phone number prefixes as networks evolve
-
-## Frequently Asked Questions
-
-### Why does my account return multiple banks?
-
-This is expected behavior. The NUBAN algorithm can produce the same check digit for different bank codes with the same serial number. In practice, users need to select their specific bank from the list.
-
-### What's the difference between NIP codes and CBN codes?
-
-- **CBN Codes**: Used for NUBAN validation (this API)
-- **NIP Codes**: Used for interbank transfers via NIBSS
-
-They are different numbering systems.
-
-### Can I use this for production applications?
-
-Yes, but with caution:
-- Always verify account details with the actual bank before processing payments
-- This is a validation tool, not a banking verification service
-- Consider implementing rate limiting and monitoring
-- Keep the bank list updated
-
-### How do I add a new bank?
-
-Add the bank to the `banks` array in [routes/nuban_util.js](routes/nuban_util.js):
-
-```javascript
-{
-  name: "NEW BANK NAME",
-  code: "123",  // 3, 5, or 6 digits
-  usesNuban: true  // or false for phone-based PSBs
-}
-```
+- [03balogun NUBAN Implementation](https://github.com/03balogun/nuban-bank-prediction-algorithm) — algorithm reference
+- [Blockroll nuban-prediction](https://github.com/Blockroll-Tech/nuban-bank-prediction) — source of the Moniepoint prefix ranges
 
 ## Changelog
 
-### v2.0 (January 2026) — Major Overhaul
+### v2.1 — Ranking & configurability
 
-- **Algorithm upgrade**: Replaced the original single 12-digit seed pattern (`373373373373`) with separate weighted arrays for bank codes and serial numbers, based on [03balogun's implementation](https://github.com/03balogun/nuban-bank-prediction-algorithm) and the CBN 2020 Revised Standards
-- **Multi-code support**: Added support for 5-digit (microfinance) and 6-digit (payment service bank) CBN codes, in addition to the original 3-digit commercial bank codes
-- **Bank list expansion**: Grew from 22 commercial banks to 176 financial institutions across all categories (commercial, microfinance, PSB, mortgage, merchant, finance companies, digital platforms)
-- **Phone number detection**: Added automatic detection of Nigerian phone numbers used as account numbers by Payment Service Banks (PalmPay, OPay, MTN MoMo, etc.)
-- **Bank ranking**: Added confidence scoring based on transaction volume/popularity
-- **Express migration**: Migrated from Restify to Express for the REST API server
-- **Codebase cleanup**: Removed redundant development scripts, consolidated duplicate bank entries, fixed non-standard bank codes
+- **Prefix → issuer ranking**: account-number prefixes now boost the matching issuer (Kuda `110/20/30/70`, Moniepoint ranges) as a bounded tiebreaker
+- **Resilient name matching**: ranking lookups normalized so name casing/punctuation edits don't silently drop a bank's score
+- **Configurable registry**: bank list moved to `data/banks.json`, overridable via `NUBAN_BANKS_PATH`
+- **Tests**: added coverage for prefix boosts and the no-boost case
+
+### v2.0 — Major overhaul
+
+- Replaced the original single 12-digit seed with separate weighted arrays (per [03balogun](https://github.com/03balogun/nuban-bank-prediction-algorithm) and CBN 2020 Revised Standards)
+- Added 5- and 6-digit code support (microfinance, PSB)
+- Expanded from 22 commercial banks to 176 institutions of all types
+- Added phone-number detection and confidence scoring
+- Migrated the server from Restify to Express
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details
+MIT License — see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
 - Original algorithm implementation: Hafiz Adewuyi
 - Algorithm upgrade inspired by [03balogun's implementation](https://github.com/03balogun/nuban-bank-prediction-algorithm)
-- Central Bank of Nigeria for NUBAN specifications
-- Nigerian banking and fintech community for testing and feedback
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/nosakhare/Nigeria-Bank-Account-NUBAN-Algorithm/issues)
-- **Discussions**: Open a GitHub Discussion for questions
-- **Documentation**: See this README for technical details
+- Moniepoint prefix ranges adapted from [Blockroll's nuban-prediction](https://github.com/Blockroll-Tech/nuban-bank-prediction)
+- Central Bank of Nigeria for the NUBAN specifications
 
 ---
 
-**⚠️ Disclaimer**: This is a validation tool only. Always verify account details with the actual bank before making financial transactions. Not affiliated with the Central Bank of Nigeria or any financial institution.
-
-**Made with ❤️ for the Nigerian fintech community**
+**⚠️ Disclaimer**: This is a validation/prediction tool only. Always verify account details with the actual bank before making financial transactions. Not affiliated with the Central Bank of Nigeria or any financial institution.

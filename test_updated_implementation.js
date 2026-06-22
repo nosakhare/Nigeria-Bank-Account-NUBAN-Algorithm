@@ -12,6 +12,13 @@ const {
   banks
 } = nubanUtil;
 
+// Builds a 10-digit NUBAN guaranteed valid for the given bank code, with a
+// serial chosen so the account number begins with `prefix`.
+const buildAccount = (bankCode, prefix) => {
+  const serial = (prefix + "0".repeat(9)).slice(0, 9);
+  return serial + generateCheckDigit(serial, bankCode);
+};
+
 const callHandler = (handler, req) => {
   let sent;
   let nextErr;
@@ -171,6 +178,32 @@ test("isPhoneNumber detects MTN/Airtel/Glo/9mobile prefixes", () => {
   assert.equal(isPhoneNumber("1234567890"), false);
   assert.equal(isPhoneNumber("803123"), false);
   assert.equal(isPhoneNumber(""), false);
+});
+
+test("prefix boost lifts Kuda for accounts starting with a Kuda prefix", () => {
+  const account = buildAccount("50211", "110"); // KUDA BANK, account starts 110
+  const { sent } = callHandler(getAccountBanks, { params: { account } });
+  const kuda = sent.nubanMatches.find(b => b.name === "KUDA BANK");
+  assert.ok(kuda, "Kuda should be a valid check-digit match");
+  // 470 popularity + 250 prefix boost
+  assert.equal(kuda.confidence, 720);
+  assert.equal(sent.nubanMatches[0].name, "KUDA BANK");
+});
+
+test("prefix boost lifts Moniepoint for accounts starting with a Moniepoint prefix", () => {
+  const account = buildAccount("50515", "56"); // MONIEPOINT, account starts 56
+  const { sent } = callHandler(getAccountBanks, { params: { account } });
+  const mp = sent.nubanMatches.find(b => b.name === "MONIEPOINT MICROFINANCE BANK");
+  assert.ok(mp, "Moniepoint should be a valid check-digit match");
+  assert.equal(mp.confidence, 740); // 490 popularity + 250 prefix boost
+});
+
+test("no prefix boost when account does not start with a known issuer prefix", () => {
+  const account = buildAccount("50211", "44"); // KUDA, account starts 44 (not a Kuda prefix)
+  const { sent } = callHandler(getAccountBanks, { params: { account } });
+  const kuda = sent.nubanMatches.find(b => b.name === "KUDA BANK");
+  assert.ok(kuda);
+  assert.equal(kuda.confidence, 470); // popularity only, no boost
 });
 
 test("banks data contains both NUBAN and non-NUBAN entries", () => {
