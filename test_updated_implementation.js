@@ -12,6 +12,13 @@ const {
   banks
 } = nubanUtil;
 
+// Builds a 10-digit NUBAN guaranteed valid for the given bank code, with a
+// serial chosen so the account number begins with `prefix`.
+const buildAccount = (bankCode, prefix) => {
+  const serial = (prefix + "0".repeat(9)).slice(0, 9);
+  return serial + generateCheckDigit(serial, bankCode);
+};
+
 const callHandler = (handler, req) => {
   let sent;
   let nextErr;
@@ -171,6 +178,45 @@ test("isPhoneNumber detects MTN/Airtel/Glo/9mobile prefixes", () => {
   assert.equal(isPhoneNumber("1234567890"), false);
   assert.equal(isPhoneNumber("803123"), false);
   assert.equal(isPhoneNumber(""), false);
+});
+
+test("Kuda is injected (bypassing the check digit) for a real Kuda-prefix account", () => {
+  // Real Kuda account: starts with "110" but does NOT pass the NUBAN check digit
+  // for any Kuda code, so it can only surface via prefix injection.
+  const account = "1100000121";
+  assert.equal(isBankAccountValid(account, "50211"), false, "precondition: not a check-digit match");
+  const { sent } = callHandler(getAccountBanks, { params: { account } });
+  const kuda = sent.nubanMatches.find(b => b.name === "KUDA BANK");
+  assert.ok(kuda, "Kuda should be injected via prefix");
+  assert.equal(kuda.viaPrefix, true);
+  assert.equal(kuda.confidence, 720); // 470 popularity + 250 prefix bonus
+  assert.equal(sent.nubanMatches[0].name, "KUDA BANK"); // ranks first
+});
+
+test("Kuda is not injected when the account does not start with a Kuda prefix", () => {
+  const account = "0690667402"; // starts 06, not a Kuda prefix
+  const { sent } = callHandler(getAccountBanks, { params: { account } });
+  assert.ok(!sent.nubanMatches.some(b => b.name === "KUDA BANK"));
+});
+
+test("prefix boost lifts Moniepoint for accounts starting with a Moniepoint prefix", () => {
+  const account = buildAccount("50515", "56"); // MONIEPOINT, account starts 56
+  const { sent } = callHandler(getAccountBanks, { params: { account } });
+  const mp = sent.nubanMatches.find(b => b.name === "MONIEPOINT MICROFINANCE BANK");
+  assert.ok(mp, "Moniepoint should be a valid check-digit match");
+  assert.equal(mp.confidence, 740); // 490 popularity + 250 prefix boost
+});
+
+test("dual-rail banks (Moniepoint) appear in phoneMatches for phone-shaped accounts", () => {
+  const { sent } = callHandler(getAccountBanks, { params: { account: "7066658273" } });
+  assert.equal(sent.isPhoneNumber, true);
+  const mp = sent.phoneMatches.find(b => b.name === "MONIEPOINT MICROFINANCE BANK");
+  assert.ok(mp, "Moniepoint should be in phoneMatches");
+  assert.equal(mp.confidence, 1490); // 490 popularity + 1000 phone boost
+  // Still keeps its NUBAN identity (not flipped to a pure PSB)
+  const moniepoint = banks.find(b => b.code === "50515");
+  assert.equal(moniepoint.usesNuban, true);
+  assert.equal(moniepoint.acceptsPhoneNumber, true);
 });
 
 test("banks data contains both NUBAN and non-NUBAN entries", () => {
