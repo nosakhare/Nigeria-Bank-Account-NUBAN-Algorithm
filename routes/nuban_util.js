@@ -153,24 +153,60 @@ const normalizedPopularity = Object.fromEntries(
   Object.entries(bankPopularity).map(([name, score]) => [normalizeName(name), score])
 );
 
-// Account-number prefix -> issuer signal. Some banks issue NUBAN serials in
-// known leading-digit ranges, so the account number's own prefix disambiguates
-// when several banks all produce a valid check digit. This is a ranking nudge,
-// not a hard match. Keyed by normalized bank name.
+// Account-number prefix -> issuer signal for banks that DO follow the NUBAN
+// check digit. Some banks issue NUBAN serials in known leading-digit ranges, so
+// the account number's own prefix disambiguates when several banks all produce a
+// valid check digit. This is a ranking nudge on already-valid matches, not a
+// hard match. Keyed by normalized bank name.
 const issuerPrefixesByBank = {
   // Moniepoint NUBAN ranges (from Blockroll's nuban-prediction data).
-  "MONIEPOINT MICROFINANCE BANK": ["56", "54", "81", "50", "53", "55", "82", "63", "58", "57", "59", "65", "90"],
-  // Kuda account numbers begin with these.
-  "KUDA BANK": ["110", "20", "30", "70"]
+  "MONIEPOINT MICROFINANCE BANK": ["56", "54", "81", "50", "53", "55", "82", "63", "58", "57", "59", "65", "90"]
 };
 const normalizedIssuerPrefixes = Object.fromEntries(
   Object.entries(issuerPrefixesByBank).map(([name, prefixes]) => [normalizeName(name), prefixes])
 );
 
+// Prefix-scheme banks that DO NOT follow the NUBAN check digit. These fintechs
+// issue account numbers by their own rule (e.g. Kuda numbers begin with one of
+// these prefixes), so their accounts never pass the CBN check-digit derivation
+// and would otherwise be impossible to predict. Here the prefix is a positive
+// identifier: when an account starts with one of these, the bank is INJECTED as
+// a candidate regardless of the check digit.
+//
+// NOTE: the 2-digit prefixes (20/30/70) are broad (~10% of accounts each), so
+// this deliberately trades precision for recall — expect false positives.
+const nonNubanPrefixBanks = {
+  "KUDA BANK": ["110", "20", "30", "70"]
+};
+const normalizedNonNubanPrefixes = Object.fromEntries(
+  Object.entries(nonNubanPrefixBanks).map(([name, prefixes]) => [normalizeName(name), prefixes])
+);
+
 // Boost applied when the account number's prefix matches a bank's known issuing
 // range. Large enough to act as a tiebreaker among equally-valid check-digit
-// matches, without overriding the phone-number PSB boost (1000).
+// matches, without overriding the phone-number PSB boost (1000). Also used as
+// the prefix-identification bonus for injected non-NUBAN banks.
 const PREFIX_BOOST = 250;
+
+/**
+ * Returns prefix-scheme banks (e.g. Kuda) to inject for an account number,
+ * bypassing the check digit. Skips any bank already present in `existingCodes`.
+ * @param {string} accountNumber
+ * @param {Set<string>} existingCodes - codes already in the match list
+ * @returns {Array} bank match objects with confidence and viaPrefix flag
+ */
+const getPrefixInjectedBanks = (accountNumber, existingCodes) => {
+  const injected = [];
+  if (!accountNumber) return injected;
+  for (const [normName, prefixes] of Object.entries(normalizedNonNubanPrefixes)) {
+    if (!prefixes.some(p => accountNumber.startsWith(p))) continue;
+    const bank = banks.find(b => normalizeName(b.name) === normName);
+    if (!bank || existingCodes.has(bank.code)) continue;
+    const base = normalizedPopularity[normName] !== undefined ? normalizedPopularity[normName] : 0;
+    injected.push({ ...bank, confidence: base + PREFIX_BOOST, viaPrefix: true });
+  }
+  return injected;
+};
 
 /**
  * Ranks a bank match based on actual transaction volume data plus the account
@@ -227,6 +263,11 @@ module.exports = {
         });
       }
     });
+
+    // Inject prefix-scheme banks (e.g. Kuda) that don't pass the NUBAN check
+    // digit but are identifiable by their account-number prefix.
+    const matchedCodes = new Set(nubanMatches.map(b => b.code));
+    nubanMatches.push(...getPrefixInjectedBanks(accountNumber, matchedCodes));
 
     // Sort by confidence score (highest first)
     nubanMatches.sort((a, b) => b.confidence - a.confidence);

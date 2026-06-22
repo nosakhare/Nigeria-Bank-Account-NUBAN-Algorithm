@@ -172,18 +172,26 @@ Each candidate bank gets a `confidence` score, summed from up to three signals:
 | **PSB phone boost** | +1000 | Account looks like a phone number and the bank is a PSB |
 | **Popularity** | 50–500 | Bank is in the top-50-by-transaction-volume table |
 | **Type base score** | 5–40 | Bank not in the popularity table (40 commercial / 20 MFB / 10 PSB / 5 other) |
-| **Prefix boost** | +250 | Account number starts with one of the bank's known issuing prefixes |
+| **Prefix boost** | +250 | A NUBAN bank's known issuing prefix matches (tiebreaker on valid matches) |
+| **Prefix injection** | popularity +250 | A non-NUBAN prefix-scheme bank (e.g. Kuda) is added by prefix, bypassing the check digit (`viaPrefix: true`) |
 
 ### Prefix → issuer signal
 
-Some banks issue NUBAN serials in known leading-digit ranges, so the account number's own prefix disambiguates when several banks all produce a valid check digit. Configured in `routes/nuban_util.js`:
+The account number's leading digits are a bank signal, handled two ways depending on whether the bank follows the NUBAN check digit. Both configured in `routes/nuban_util.js`.
 
-| Bank | Account prefixes |
-|------|-----------------|
-| **Kuda Bank** | `110`, `20`, `30`, `70` |
-| **Moniepoint MFB** | `56`, `54`, `81`, `50`, `53`, `55`, `82`, `63`, `58`, `57`, `59`, `65`, `90` |
+**Boost (NUBAN banks).** Banks that issue standard NUBANs in known leading-digit ranges get a `+250` ranking nudge when their prefix matches — a **bounded tiebreaker** among already-valid check-digit matches. It never forces a match the math rejects.
 
-The boost is a **bounded tiebreaker** (`PREFIX_BOOST = 250`), not a hard override: it reorders already-valid matches but never forces a match the check-digit math rejects. The `2`-digit Kuda prefixes are intentionally broad, which is why the signal nudges rather than dictates.
+| Bank | Account prefixes | Mechanism |
+|------|-----------------|-----------|
+| **Moniepoint MFB** | `56`, `54`, `81`, `50`, `53`, `55`, `82`, `63`, `58`, `57`, `59`, `65`, `90` | boost |
+
+**Injection (non-NUBAN prefix-scheme banks).** Some fintechs (e.g. **Kuda**) issue account numbers by their own rule, so their accounts *never* pass the CBN check digit and are otherwise impossible to predict. For these the prefix is a **positive identifier**: when an account starts with one, the bank is **injected** as a candidate (confidence = popularity + `250`), bypassing the check digit. Injected matches carry `"viaPrefix": true`.
+
+| Bank | Account prefixes | Mechanism |
+|------|-----------------|-----------|
+| **Kuda Bank** | `110`, `20`, `30`, `70` | injection |
+
+> ⚠️ Kuda's 2-digit prefixes (`20`/`30`/`70`) each cover ~10% of all account numbers, so injection deliberately trades precision for recall — expect false positives on those prefixes. `110` is narrow and safe.
 
 ### Resilient name matching
 
@@ -308,8 +316,9 @@ Nigeria-Bank-Account-NUBAN-Algorithm/
 1. **Multiple matches by design** — the same serial with different bank codes can yield the same check digit, so an account can be valid for several banks. Ranking narrows it; the user still confirms their bank.
 2. **PSBs don't use NUBAN** — PSB account numbers are phone numbers, validated/returned separately (`phoneMatches`), not via the check-digit sweep.
 3. **CBN codes ≠ NIP codes** — this uses CBN bank codes for NUBAN validation; NIBSS NIP codes (interbank transfers) are a different numbering system.
-4. **Prefix signal is heuristic** — issuing-range prefixes (Kuda, Moniepoint) are a bounded tiebreaker, best tuned with real transaction data via the `PREFIX_BOOST` constant and the prefix map.
-5. **Registry currency** — Nigeria's banking sector evolves; newly licensed institutions can be added by editing `data/banks.json` (or pointing `NUBAN_BANKS_PATH` at your own list).
+4. **Some banks don't use the NUBAN check digit** — fintechs like **Kuda** and **Aella** issue account numbers by their own scheme, so the check-digit algorithm cannot predict them. Kuda is recovered via prefix injection (see above); banks without a known prefix mapping (e.g. Aella) cannot currently be predicted at all. Add their prefixes to `nonNubanPrefixBanks` as the data becomes available.
+5. **Prefix signal is heuristic** — issuing-range prefixes are best tuned with real transaction data via the `PREFIX_BOOST` constant, `issuerPrefixesByBank` (boost), and `nonNubanPrefixBanks` (injection). Broad 2-digit prefixes cause false positives.
+6. **Registry currency** — Nigeria's banking sector evolves; newly licensed institutions can be added by editing `data/banks.json` (or pointing `NUBAN_BANKS_PATH` at your own list).
 
 ## How do I add or update a bank?
 
@@ -319,7 +328,7 @@ Edit [data/banks.json](data/banks.json) — no code change needed:
 { "name": "NEW BANK NAME", "code": "123", "usesNuban": true }
 ```
 
-Use `usesNuban: false` for phone-based PSBs. To rank a bank or give it a prefix signal, add it to `bankPopularity` / `issuerPrefixesByBank` in [routes/nuban_util.js](routes/nuban_util.js).
+Use `usesNuban: false` for phone-based PSBs. To rank a bank or give it a prefix signal, edit [routes/nuban_util.js](routes/nuban_util.js): `bankPopularity` (ranking), `issuerPrefixesByBank` (boost for NUBAN banks), or `nonNubanPrefixBanks` (injection for prefix-scheme fintechs like Kuda).
 
 ## Standards & References
 
@@ -332,10 +341,11 @@ Use `usesNuban: false` for phone-based PSBs. To rank a bank or give it a prefix 
 
 ### v2.1 — Ranking & configurability
 
-- **Prefix → issuer ranking**: account-number prefixes now boost the matching issuer (Kuda `110/20/30/70`, Moniepoint ranges) as a bounded tiebreaker
+- **Prefix → issuer boost**: account-number prefixes nudge matching NUBAN issuers (Moniepoint ranges) as a bounded tiebreaker
+- **Prefix injection for non-NUBAN banks**: prefix-scheme fintechs that never pass the check digit (Kuda `110/20/30/70`) are injected as candidates by prefix, flagged `viaPrefix`
 - **Resilient name matching**: ranking lookups normalized so name casing/punctuation edits don't silently drop a bank's score
 - **Configurable registry**: bank list moved to `data/banks.json`, overridable via `NUBAN_BANKS_PATH`
-- **Tests**: added coverage for prefix boosts and the no-boost case
+- **Tests**: added coverage for prefix boost, prefix injection, and negative cases
 
 ### v2.0 — Major overhaul
 

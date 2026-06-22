@@ -180,14 +180,23 @@ test("isPhoneNumber detects MTN/Airtel/Glo/9mobile prefixes", () => {
   assert.equal(isPhoneNumber(""), false);
 });
 
-test("prefix boost lifts Kuda for accounts starting with a Kuda prefix", () => {
-  const account = buildAccount("50211", "110"); // KUDA BANK, account starts 110
+test("Kuda is injected (bypassing the check digit) for a real Kuda-prefix account", () => {
+  // Real Kuda account: starts with "110" but does NOT pass the NUBAN check digit
+  // for any Kuda code, so it can only surface via prefix injection.
+  const account = "1100000121";
+  assert.equal(isBankAccountValid(account, "50211"), false, "precondition: not a check-digit match");
   const { sent } = callHandler(getAccountBanks, { params: { account } });
   const kuda = sent.nubanMatches.find(b => b.name === "KUDA BANK");
-  assert.ok(kuda, "Kuda should be a valid check-digit match");
-  // 470 popularity + 250 prefix boost
-  assert.equal(kuda.confidence, 720);
-  assert.equal(sent.nubanMatches[0].name, "KUDA BANK");
+  assert.ok(kuda, "Kuda should be injected via prefix");
+  assert.equal(kuda.viaPrefix, true);
+  assert.equal(kuda.confidence, 720); // 470 popularity + 250 prefix bonus
+  assert.equal(sent.nubanMatches[0].name, "KUDA BANK"); // ranks first
+});
+
+test("Kuda is not injected when the account does not start with a Kuda prefix", () => {
+  const account = "0690667402"; // starts 06, not a Kuda prefix
+  const { sent } = callHandler(getAccountBanks, { params: { account } });
+  assert.ok(!sent.nubanMatches.some(b => b.name === "KUDA BANK"));
 });
 
 test("prefix boost lifts Moniepoint for accounts starting with a Moniepoint prefix", () => {
@@ -196,14 +205,6 @@ test("prefix boost lifts Moniepoint for accounts starting with a Moniepoint pref
   const mp = sent.nubanMatches.find(b => b.name === "MONIEPOINT MICROFINANCE BANK");
   assert.ok(mp, "Moniepoint should be a valid check-digit match");
   assert.equal(mp.confidence, 740); // 490 popularity + 250 prefix boost
-});
-
-test("no prefix boost when account does not start with a known issuer prefix", () => {
-  const account = buildAccount("50211", "44"); // KUDA, account starts 44 (not a Kuda prefix)
-  const { sent } = callHandler(getAccountBanks, { params: { account } });
-  const kuda = sent.nubanMatches.find(b => b.name === "KUDA BANK");
-  assert.ok(kuda);
-  assert.equal(kuda.confidence, 470); // popularity only, no boost
 });
 
 test("banks data contains both NUBAN and non-NUBAN entries", () => {
