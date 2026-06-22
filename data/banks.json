@@ -187,7 +187,8 @@
   {
     "name": "MONIEPOINT MICROFINANCE BANK",
     "code": "50515",
-    "usesNuban": true
+    "usesNuban": true,
+    "acceptsPhoneNumber": true
   },
   {
     "name": "SPARKLE MICROFINANCE BANK",

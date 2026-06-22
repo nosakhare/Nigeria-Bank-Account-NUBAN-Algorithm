@@ -130,7 +130,7 @@ curl http://localhost:3000/accounts/8031234567/banks
 | `isPhoneNumber` | `true` if the number matches a Nigerian mobile prefix |
 | `phoneNumber` | Reconstructed 11-digit phone number (leading `0`) when `isPhoneNumber` is true, else `null` |
 | `nubanMatches` | Banks whose check digit matches, sorted by `confidence` desc. Each: `{ name, code, usesNuban: true, confidence }` |
-| `phoneMatches` | Payment Service Banks (phone-based). Only populated when `isPhoneNumber` is true. Each: `{ name, code, usesNuban: false, confidence }` |
+| `phoneMatches` | Banks that accept phone numbers as account numbers — pure PSBs *and* dual-rail banks like Moniepoint. Only populated when `isPhoneNumber` is true. Each: `{ name, code, usesNuban, confidence }` |
 | `totalMatches` | `nubanMatches.length + phoneMatches.length` |
 
 ### 2. Generate an account number
@@ -209,7 +209,7 @@ Popularity and prefix lookups are keyed on a **normalized** bank name (`normaliz
 NUBAN_BANKS_PATH=/path/to/my-banks.json node server.js
 ```
 
-The registry file is a JSON array of `{ "name": string, "code": string, "usesNuban": boolean }` objects.
+The registry file is a JSON array of `{ "name": string, "code": string, "usesNuban": boolean }` objects. An optional `"acceptsPhoneNumber": true` marks a **dual-rail** bank that uses NUBAN for regular accounts but *also* accepts phone numbers as account numbers (e.g. Moniepoint) — such banks appear in both `nubanMatches` and `phoneMatches`.
 
 ## How the NUBAN Algorithm Works
 
@@ -338,6 +338,10 @@ Use `usesNuban: false` for phone-based PSBs. To rank a bank or give it a prefix 
 - [Blockroll nuban-prediction](https://github.com/Blockroll-Tech/nuban-bank-prediction) — source of the Moniepoint prefix ranges
 
 ## Changelog
+
+### v2.2 — Dual-rail banks
+
+- **`acceptsPhoneNumber` flag**: banks that use NUBAN *and* accept phone numbers as account numbers (e.g. Moniepoint) now surface in `phoneMatches` for phone-shaped inputs, while keeping their NUBAN matching and generation. The phone-number confidence boost (+1000) applies to them too.
 
 ### v2.1 — Ranking & configurability
 

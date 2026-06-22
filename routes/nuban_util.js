@@ -62,8 +62,14 @@ const banksPath = process.env.NUBAN_BANKS_PATH
   : DEFAULT_BANKS_PATH;
 const banks = JSON.parse(fs.readFileSync(banksPath, "utf8"));
 
-// Banks that use phone numbers as account numbers instead of NUBAN
-const phoneNumberBanks = banks.filter(bank => bank.usesNuban === false);
+// A bank accepts phone numbers as account numbers if it is a pure phone-based
+// PSB (usesNuban === false) OR a dual-rail bank that supports both NUBAN and
+// phone-number accounts (acceptsPhoneNumber === true, e.g. Moniepoint).
+const bankAcceptsPhone = (bank) =>
+  bank.usesNuban === false || bank.acceptsPhoneNumber === true;
+
+// Banks that can be matched when the input looks like a phone number.
+const phoneNumberBanks = banks.filter(bankAcceptsPhone);
 
 // Updated algorithm based on 03balogun's implementation
 // Source: https://github.com/03balogun/nuban-bank-prediction-algorithm
@@ -216,9 +222,10 @@ const rankBankMatch = (bank, accountNumber, isPhoneNumber) => {
   let score = 0;
   const normalized = normalizeName(bank.name);
 
-  // If account looks like a phone number, heavily favor PSBs
-  if (isPhoneNumber && !bank.usesNuban) {
-    score += 1000; // PSBs get massive boost for phone numbers
+  // If account looks like a phone number, heavily favor banks that accept phone
+  // numbers as account numbers (pure PSBs and dual-rail banks like Moniepoint).
+  if (isPhoneNumber && bankAcceptsPhone(bank)) {
+    score += 1000;
   }
 
   // Apply popularity score (resilient to name casing/punctuation drift)

@@ -207,6 +207,18 @@ test("prefix boost lifts Moniepoint for accounts starting with a Moniepoint pref
   assert.equal(mp.confidence, 740); // 490 popularity + 250 prefix boost
 });
 
+test("dual-rail banks (Moniepoint) appear in phoneMatches for phone-shaped accounts", () => {
+  const { sent } = callHandler(getAccountBanks, { params: { account: "7066658273" } });
+  assert.equal(sent.isPhoneNumber, true);
+  const mp = sent.phoneMatches.find(b => b.name === "MONIEPOINT MICROFINANCE BANK");
+  assert.ok(mp, "Moniepoint should be in phoneMatches");
+  assert.equal(mp.confidence, 1490); // 490 popularity + 1000 phone boost
+  // Still keeps its NUBAN identity (not flipped to a pure PSB)
+  const moniepoint = banks.find(b => b.code === "50515");
+  assert.equal(moniepoint.usesNuban, true);
+  assert.equal(moniepoint.acceptsPhoneNumber, true);
+});
+
 test("banks data contains both NUBAN and non-NUBAN entries", () => {
   assert.ok(banks.some(b => b.usesNuban === true));
   assert.ok(banks.some(b => b.usesNuban === false));
